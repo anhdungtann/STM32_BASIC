@@ -6,7 +6,7 @@
 ".\objects\stm32f10x_rcc.o"
 ".\objects\startup_stm32f10x_md.o"
 ".\objects\system_stm32f10x.o"
---strict --scatter ".\Objects\Interrup.sct"
+--strict --scatter ".\Objects\interrup.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
---list ".\Listings\Interrup.map" -o .\Objects\Interrup.axf
+--list ".\Listings\interrup.map" -o .\Objects\interrup.axf
