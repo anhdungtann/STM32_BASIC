@@ -1,0 +1,97 @@
+#include "stm32f10x.h"                  // Device header
+#include "stm32f10x_gpio.h"             // Keil::Device:StdPeriph Drivers:GPIO
+#include "stm32f10x_rcc.h"              // Keil::Device:StdPeriph Drivers:RCC
+#include "stm32f10x_usart.h"            // Keil::Device:StdPeriph Drivers:USART
+#include "string.h"
+#include "stdio.h"
+
+char ONLED[] = "ON";
+char OFFLED[] = "OFF";
+
+char pcr;
+uint16_t stt;
+uint16_t cnt = 0;
+char res[100];
+
+void Config_GPIO(){
+	GPIO_InitTypeDef gpio;
+	GPIO_InitTypeDef uart;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC, ENABLE);
+	
+	gpio.GPIO_Mode			= GPIO_Mode_Out_PP;
+	gpio.GPIO_Pin				= GPIO_Pin_13;
+	gpio.GPIO_Speed			= GPIO_Speed_50MHz;
+	GPIO_Init(GPIOC, &gpio);
+	
+	uart.GPIO_Mode 			= GPIO_Mode_AF_PP;
+	uart.GPIO_Pin				= GPIO_Pin_9;
+	uart.GPIO_Speed			= GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &uart);
+	
+	uart.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+	uart.GPIO_Pin				= GPIO_Pin_10;
+	GPIO_Init(GPIOA, &uart);
+}
+
+void Config_Uart(){
+    USART_InitTypeDef usart;
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+    
+    usart.USART_BaudRate            = 9600;
+    usart.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    // S?A: B?t c? Tx và Rx
+    usart.USART_Mode                = USART_Mode_Rx | USART_Mode_Tx; 
+    usart.USART_Parity              = USART_Parity_No;
+    usart.USART_StopBits            = USART_StopBits_1;
+    usart.USART_WordLength          = USART_WordLength_8b;
+    
+    USART_Init(USART1, &usart);
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+    NVIC_EnableIRQ(USART1_IRQn);
+    USART_Cmd(USART1, ENABLE);
+}
+
+
+uint16_t UARTx_Getc(USART_TypeDef* USARTx){
+	return USART_ReceiveData(USARTx);
+}
+
+void USART1_IRQHandler(){
+    if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET){
+        pcr = USART_ReceiveData(USART1); // Ð?c d? li?u
+        
+        // S?A: Ch?p nh?n c? \r và \n làm ký t? k?t thúc
+        if(pcr == '\n' || pcr == '\r'){
+            if(cnt > 0){ // Ch? x? lý khi dã nh?n du?c ít nh?t 1 ký t? d? li?u
+                res[cnt] = '\0'; // K?t thúc chu?i
+                stt = 1;         // Báo hi?u cho main x? lý
+                cnt = 0;         // Reset bi?n d?m
+            }
+        }
+        else{
+            // S?A: Ch?ng tràn b? d?m (Buffer Overflow)
+            if(cnt < 99){ 
+                res[cnt] = pcr;
+                cnt++;
+            }
+        }
+    }
+}
+
+int main(){
+	Config_GPIO();
+	Config_Uart();
+	GPIO_SetBits(GPIOC, GPIO_Pin_13);
+	while(1){
+		if(stt){
+			
+			if(strstr(res, ONLED) != NULL){ //hàm strstr tìm con tro dau tien den chuoi con trong chuoi lon.
+				GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+			}
+			else if(strstr(res, OFFLED) != NULL){
+				GPIO_SetBits(GPIOC, GPIO_Pin_13);
+			}
+			stt = 0;
+		}
+	}
+}
